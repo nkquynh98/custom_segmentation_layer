@@ -1,0 +1,13 @@
+<class_libraries>
+<library path="lib/libgrid_layer">
+  <class type="simple_layer_namespace::GridLayer" base_class_type="costmap_2d::Layer">
+    <description>Demo Layer that marks all points that were ever one meter in front of the robot</description>
+  </class>
+</library>
+
+<library path="lib/libcustom_segmentation_layer">
+  <class type="custom_segmentation_layer::CustomSegmentationLayer" base_class_type="costmap_2d::Layer">
+    <description>Demo Layer that marks all points on freespace from segmentation</description>
+  </class>
+</library>
+</class_libraries>
