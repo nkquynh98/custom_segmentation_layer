@@ -31,6 +31,14 @@ void CustomSegmentationLayer::onInitialize()
   matchSize();
   x_range_min=1.5;
   x_range_max=5;
+
+  objectList_.push_back(SegmentationObject("freepath", 1, false, false, false));
+  objectList_.push_back(SegmentationObject("human", 2, true, true, true));
+  objectList_.push_back(SegmentationObject("obstacles", 0, false, false, false));
+  /* Costmap2D* master = layered_costmap_->getCostmap();
+
+  objectList_[1].InitializeCostmap(master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),master->getOriginX(), master->getOriginY(), default_value_); */
+  //ROS_INFO_STREAM(master->getSizeInCellsX());
   dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(nh);
   dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>::CallbackType cb = boost::bind(
       &CustomSegmentationLayer::reconfigureCB, this, _1, _2);
@@ -45,9 +53,13 @@ void CustomSegmentationLayer::onInitialize()
 void CustomSegmentationLayer::dataCB(const sensor_msgs::PointCloud::ConstPtr &msg)
 {
   //Clear obstacle
-  freepath_converted.points.clear();
+/*   freepath_converted.points.clear();
   obstacle_converted.points.clear();
-  human_converted.points.clear();
+  human_converted.points.clear(); */
+  for (int i=0; i<objectList_.size(); i++)
+      {
+        objectList_[i].clearPoints();
+      }
   raw_data=*msg;
   new_data = true;
 }
@@ -60,13 +72,21 @@ void CustomSegmentationLayer::convert_points(double robot_x, double robot_y, dou
   {
       double point_x=data.points[i].y;
       double point_y=data.points[i].x;
+      //ROS_INFO_STREAM(data.points[i].z);
       if((point_x>x_range_min) && (point_x<x_range_max))
       {
         geometry_msgs::Point32 temp_point;
         temp_point.z=0;
         temp_point.x=robot_x + (point_x*cos_th - point_y*sin_th);
         temp_point.y=robot_y + (point_x*sin_th + point_y*cos_th);
-        switch(int(data.points[i].z)){
+      for (int j=0; j<objectList_.size(); j++)
+      {
+        if (objectList_[j].obstacleID_==data.points[i].z)
+        {
+          objectList_[j].addPoints(temp_point);
+        }
+      }
+/*         switch(int(data.points[i].z)){
           case 0:
             obstacle_converted.points.push_back(temp_point);
             break;
@@ -76,9 +96,10 @@ void CustomSegmentationLayer::convert_points(double robot_x, double robot_y, dou
           case 2:
             human_converted.points.push_back(temp_point);
             break;        
-        }
+        } */
       }
   }
+  //ROS_INFO("Callback finish");
 }
   
 void CustomSegmentationLayer::matchSize()
@@ -105,8 +126,9 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
     return;
   matchSize();
   convert_points(robot_x, robot_y, robot_yaw, raw_data);
-  ROS_INFO("Robot_X: %f, Robot_y: %f, Robot_yaw: %f", robot_x, robot_y, robot_yaw);
-  for (int i=0; i<human_converted.points.size(); i++)
+  //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getResolution());
+  //ROS_INFO("Robot_X: %f, Robot_y: %f, Robot_yaw: %f", robot_x, robot_y, robot_yaw);
+/*   for (int i=0; i<human_converted.points.size(); i++)
   {
     unsigned int mx, my;
     double mark_x=human_converted.points[i].x;
@@ -116,6 +138,42 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
       //ROS_INFO("Mark X is %f, Mark Y is %f  , value is %d", mark_x, mark_y, costmap_[getIndex(mx, my)]);
 	  }
   }
+ */
+  //ROS_INFO("Object List size is : %d", objectList_.size());
+  for (int i=0; i<objectList_.size(); i++)
+  {
+    //ROS_INFO_STREAM(objectList_[1].obstaclePoints_.points.size());
+    //ROS_INFO("Object List size is : %d",objectList_[i].obstaclePoints_.points.size());
+    for (int j=0; j<objectList_[i].obstaclePoints_.points.size(); j++)
+    {
+     // ROS_INFO_STREAM(objectList_[i].obstaclePoints_.points.size());
+      unsigned int mx, my;
+      double mark_x=objectList_[i].obstaclePoints_.points[j].x;
+      double mark_y=objectList_[i].obstaclePoints_.points[j].y;
+      
+      if(objectList_[i].isPublishedCostmap())
+      {
+        //ROS_INFO_STREAM(mark_x);
+        if(worldToMap(mark_x, mark_y, mx, my)){
+          //ROS_INFO_STREAM(objectList_[i].getName());
+          //ROS_INFO_STREAM(objectList_[i].isObstacle());
+          if(objectList_[i].isObstacle())
+          {
+            //ROS_INFO_STREAM(objectList_[i].getName());
+            setCost(mx, my, LETHAL_OBSTACLE);
+          }
+          else 
+          {
+            setCost(mx, my, FREE_SPACE);
+          }
+        //ROS_INFO("Mark X is %f, Mark Y is %f  , value is %d", mark_x, mark_y, costmap_[getIndex(mx, my)]);
+      }
+      }
+    }
+  }
+
+  //objectList_[1].publish_costmap();
+
   // REVIEW: potentially make this configurable, or calculated?
   *min_x = -20; // 20 meters, max size
   *min_y = -20;

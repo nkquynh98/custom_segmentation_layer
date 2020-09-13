@@ -1,6 +1,3 @@
-// Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
-// Full license terms provided in LICENSE.md file.
-
 #ifndef CUSTOM_SEGMENTATION_LAYER_H_
 #define CUSTOM_SEGMENTATION_LAYER_H_
 #include <ros/ros.h>
@@ -13,6 +10,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/PointStamped.h>
+#include <custom_segmentation_layer/seg_obstacles.h>
 
 
 namespace custom_segmentation_layer
@@ -57,6 +55,7 @@ private:
   void parseHomographyConstants(const std::string &homography_folder);
   void parseIntSet(const std::string &raw_list, std::set<int> &int_set);
   void convert_points(double robot_x, double robot_y, double robot_yaw, sensor_msgs::PointCloud data);
+  std::vector<SegmentationObject> objectList_;
 };
 }
 #endif
