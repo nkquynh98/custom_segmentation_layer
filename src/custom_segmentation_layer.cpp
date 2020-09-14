@@ -22,9 +22,10 @@ void CustomSegmentationLayer::onInitialize()
   std::string segmentation_topic;
 
   segmentation_topic = "/segmentation/data";
-  
+  std::string odom_topic="/odom";
+  std::string dynamicObstacle_topic="/move_base/TebLocalPlannerROS/obstacles";
   ros::NodeHandle nh("~/" + name_);
-
+  isDynamicPublished_=true;
   
   current_ = true;
   new_data = false;
@@ -33,7 +34,7 @@ void CustomSegmentationLayer::onInitialize()
   x_range_min=1.5;
   x_range_max=5;
 
-  objectList_.push_back(SegmentationObject("freepath", 1, false, false, false));
+  objectList_.push_back(SegmentationObject("freepath", 1, true, true, true));
   objectList_.push_back(SegmentationObject("human", 2, true, true, true));
   objectList_.push_back(SegmentationObject("obstacles", 0, false, false, false));
 
@@ -46,7 +47,11 @@ void CustomSegmentationLayer::onInitialize()
 
 
   data_sub_ = nh.subscribe<sensor_msgs::PointCloud>(segmentation_topic, 1, &CustomSegmentationLayer::dataCB, this);
-
+  odom_sub_ = nh.subscribe(odom_topic, 1, &CustomSegmentationLayer::odomCB, this);
+  if (isDynamicPublished_)
+  {
+    dyn_pub_ = nh.advertise<costmap_converter::ObstacleArrayMsg>(dynamicObstacle_topic, 10);
+  }
 }
 
 //Listen and convert the points to map frame
@@ -62,6 +67,24 @@ void CustomSegmentationLayer::dataCB(const sensor_msgs::PointCloud::ConstPtr &ms
       }
   raw_data=*msg;
   new_data = true;
+}
+
+
+void CustomSegmentationLayer::odomCB(const nav_msgs::Odometry::ConstPtr& msg)
+{
+  ROS_INFO_ONCE("CostmapToDynamicObstacles: odom received.");
+
+  tf::Quaternion pose;
+  tf::quaternionMsgToTF(msg->pose.pose.orientation, pose);
+
+  tf::Vector3 twistLinear;
+  tf::vector3MsgToTF(msg->twist.twist.linear, twistLinear);
+
+  // velocity of the robot in x, y and z coordinates
+  tf::Vector3 vel = tf::quatRotate(pose, twistLinear);
+  current_vel_.x = vel.x();
+  current_vel_.y = vel.y();
+  current_vel_.z = vel.z();
 }
 
 void CustomSegmentationLayer::convert_points(double robot_x, double robot_y, double robot_yaw, sensor_msgs::PointCloud data)
@@ -108,17 +131,59 @@ void CustomSegmentationLayer::matchSize()
   resizeMap(master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),
 	    master->getOriginX(), master->getOriginY());
 }
+
+void CustomSegmentationLayer::publish_dynamicObstacle()
+{
+  if(!isDynamicPublished_)
+    return;
+  dynamicObstacles_.header.stamp = ros::Time::now();
+  dynamicObstacles_.header.frame_id = "map"; //Global frame /map
+  dynamicObstacles_.obstacles.clear();
+
+  for (int i=0; i<objectList_.size(); i++)
+  {
+    if(objectList_[i].isDynamic())
+    {
+      objectList_[i].update_CVcostmap();
+      objectList_[i].compute_tracking(current_vel_);
+      for(int j=0; j<objectList_[i].obstacles_.size(); j++)
+      {
+        dynamicObstacles_.obstacles.push_back(objectList_[i].obstacles_[j]);
+      }
+    }
+  }
+  dyn_pub_.publish(dynamicObstacles_);
+}
+
+void CustomSegmentationLayer::publishCostMap()
+{
+  for (int i=0; i<objectList_.size(); i++)
+  {
+    if (!objectList_[i].isPublishedCostmap()) continue;
+    objectList_[i].publish_costmap();
+  }
+    
+}
 void CustomSegmentationLayer::matchSize_costmapObject()
 {
   if (isInitializing_)
   {
-    objectList_[1].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), 0);
+    
+    for (int i=0; i<objectList_.size(); i++)
+    {
+      if (!objectList_[i].isPublishedCostmap()) continue;
+      objectList_[i].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), 0);
+    }
     isInitializing_=false;
   }
   else
   {
-    objectList_[1].SegmentationCostmaps_->resizeMap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),
+    for (int i=0; i<objectList_.size(); i++)
+    {
+      if (!objectList_[i].isPublishedCostmap()) continue;
+      objectList_[i].SegmentationCostmaps_->resizeMap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),
 	    this->getOriginX(), this->getOriginY());
+    }
   }
 }
   
@@ -142,7 +207,7 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   convert_points(robot_x, robot_y, robot_yaw, raw_data);
   //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getOriginX());
   
-  objectList_[1].publish_costmap();
+  //objectList_[1].publish_costmap();
   
   //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getOriginX());
   //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getResolution());
@@ -178,12 +243,13 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
           //ROS_INFO_STREAM(objectList_[i].isObstacle());
           if(objectList_[i].isObstacle())
           {
-            objectList_[1].SegmentationCostmaps_->setCost(mx, my, LETHAL_OBSTACLE);
+            objectList_[i].SegmentationCostmaps_->setCost(mx, my, LETHAL_OBSTACLE);
             //ROS_INFO_STREAM(objectList_[i].getName());
             setCost(mx, my, LETHAL_OBSTACLE);
           }
           else 
           {
+            objectList_[i].SegmentationCostmaps_->setCost(mx, my, FREE_SPACE);
             setCost(mx, my, FREE_SPACE);
           }
         //ROS_INFO("Mark X is %f, Mark Y is %f  , value is %d", mark_x, mark_y, costmap_[getIndex(mx, my)]);
@@ -191,9 +257,8 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
       }
     }
   }
-  objectList_[1].update_CVcostmap();
-  objectList_[1].compute_tracking();
-  
+  publish_dynamicObstacle();
+  //publishCostMap();
 
   //objectList_[1].publish_costmap();
 

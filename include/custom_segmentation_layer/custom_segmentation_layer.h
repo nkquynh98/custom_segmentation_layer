@@ -9,11 +9,13 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud.h>
 #include <tf/transform_listener.h>
+#include <tf/tf.h>
 #include <geometry_msgs/PointStamped.h>
 #include <custom_segmentation_layer/seg_obstacles.h>
+#include <nav_msgs/Odometry.h>
 #include <costmap_converter/ObstacleArrayMsg.h>
 #include <costmap_converter/ObstacleMsg.h>
-
+#include <custom_segmentation_layer/multitarget_tracker/Ctracker.h>
 namespace custom_segmentation_layer
 {
 
@@ -30,7 +32,8 @@ public:
     return true;
   }
   virtual void matchSize();
-  void matchSize_costmapObject();
+
+
 
 private:
   std::set<int> obstacle_ids;
@@ -50,15 +53,24 @@ private:
   cv::Mat cropped;
   cv::Mat h;
   ros::Subscriber data_sub_;
+  ros::Subscriber odom_sub_;
+  ros::Publisher dyn_pub_;
+  bool isDynamicPublished_;
   bool isInitializing_;
+  void publish_dynamicObstacle();
+  void publishCostMap();
+  void matchSize_costmapObject();
   void reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level);
   void dataCB(const sensor_msgs::PointCloud::ConstPtr &msg);
+  void odomCB(const nav_msgs::Odometry::ConstPtr& msg);
   dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig> *dsrv_;
   void segNetCb(const sensor_msgs::Image::ConstPtr &msg);
   void parseHomographyConstants(const std::string &homography_folder);
   void parseIntSet(const std::string &raw_list, std::set<int> &int_set);
   void convert_points(double robot_x, double robot_y, double robot_yaw, sensor_msgs::PointCloud data);
   std::vector<SegmentationObject> objectList_;
+  costmap_converter::ObstacleArrayMsg dynamicObstacles_;
+  Point_t current_vel_; 
 
 };
 }
