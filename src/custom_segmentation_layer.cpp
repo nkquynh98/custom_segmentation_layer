@@ -18,6 +18,7 @@ CustomSegmentationLayer::CustomSegmentationLayer() {}
 
 void CustomSegmentationLayer::onInitialize()
 {
+  isInitializing_=true;
   std::string segmentation_topic;
 
   segmentation_topic = "/segmentation/data";
@@ -35,9 +36,8 @@ void CustomSegmentationLayer::onInitialize()
   objectList_.push_back(SegmentationObject("freepath", 1, false, false, false));
   objectList_.push_back(SegmentationObject("human", 2, true, true, true));
   objectList_.push_back(SegmentationObject("obstacles", 0, false, false, false));
-  /* Costmap2D* master = layered_costmap_->getCostmap();
 
-  objectList_[1].InitializeCostmap(master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),master->getOriginX(), master->getOriginY(), default_value_); */
+   
   //ROS_INFO_STREAM(master->getSizeInCellsX());
   dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(nh);
   dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>::CallbackType cb = boost::bind(
@@ -108,6 +108,19 @@ void CustomSegmentationLayer::matchSize()
   resizeMap(master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),
 	    master->getOriginX(), master->getOriginY());
 }
+void CustomSegmentationLayer::matchSize_costmapObject()
+{
+  if (isInitializing_)
+  {
+    objectList_[1].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), 0);
+    isInitializing_=false;
+  }
+  else
+  {
+    objectList_[1].SegmentationCostmaps_->resizeMap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),
+	    this->getOriginX(), this->getOriginY());
+  }
+}
   
   // allows the plugin to dynamically change the configuration of the costmap
 void CustomSegmentationLayer::reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level)
@@ -125,7 +138,13 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   if (!new_data)
     return;
   matchSize();
+  matchSize_costmapObject();
   convert_points(robot_x, robot_y, robot_yaw, raw_data);
+  //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getOriginX());
+  
+  objectList_[1].publish_costmap();
+  
+  //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getOriginX());
   //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getResolution());
   //ROS_INFO("Robot_X: %f, Robot_y: %f, Robot_yaw: %f", robot_x, robot_y, robot_yaw);
 /*   for (int i=0; i<human_converted.points.size(); i++)
@@ -159,6 +178,7 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
           //ROS_INFO_STREAM(objectList_[i].isObstacle());
           if(objectList_[i].isObstacle())
           {
+            objectList_[1].SegmentationCostmaps_->setCost(mx, my, LETHAL_OBSTACLE);
             //ROS_INFO_STREAM(objectList_[i].getName());
             setCost(mx, my, LETHAL_OBSTACLE);
           }
@@ -171,6 +191,9 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
       }
     }
   }
+  objectList_[1].update_CVcostmap();
+  objectList_[1].compute_tracking();
+  
 
   //objectList_[1].publish_costmap();
 
