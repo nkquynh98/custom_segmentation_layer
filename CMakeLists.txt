@@ -8,15 +8,17 @@ project(custom_segmentation_layer)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  geometry_msgs
   costmap_2d
   dynamic_reconfigure
   roscpp
   cv_bridge
+  pluginlib
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
+find_package(OpenCV REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -119,6 +121,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS} 
   include
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -126,8 +129,13 @@ add_library(grid_layer  src/grid_layer.cpp
                         src/listen_convert.cpp
 )
 
-add_library( custom_segmentation_layer src/custom_segmentation_layer.cpp
-)
+add_library( custom_segmentation_layer  src/custom_segmentation_layer.cpp
+                                        src/blob_detector.cpp
+                                        src/multitarget_tracker/Ctracker.cpp
+                                        src/multitarget_tracker/Kalman.cpp
+                                        src/multitarget_tracker/HungarianAlg.cpp
+        )
+target_link_libraries(custom_segmentation_layer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_executable(listen_convert src/listen_convert.cpp)
 target_link_libraries(listen_convert ${catkin_LIBRARIES})
 add_dependencies(listen_convert custom_segmentation_layer)
