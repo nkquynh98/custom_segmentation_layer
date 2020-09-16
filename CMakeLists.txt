@@ -140,6 +140,10 @@ add_executable(listen_convert src/listen_convert.cpp)
 target_link_libraries(listen_convert ${catkin_LIBRARIES})
 add_dependencies(listen_convert custom_segmentation_layer)
 
+add_executable(test_yaml src/test_yaml.cpp)
+target_link_libraries(test_yaml ${catkin_LIBRARIES})
+add_dependencies(test_yaml custom_segmentation_layer)
+
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
