@@ -3,6 +3,7 @@
 #include <ros/ros.h>
 #include <costmap_2d/layer.h>
 #include <costmap_2d/layered_costmap.h>
+#include <costmap_2d/costmap_layer.h>
 #include <costmap_2d/GenericPluginConfig.h>
 #include <dynamic_reconfigure/server.h>
 #include <opencv2/opencv.hpp>
@@ -19,7 +20,7 @@
 namespace custom_segmentation_layer
 {
 
-class CustomSegmentationLayer : public costmap_2d::Layer, public costmap_2d::Costmap2D
+class CustomSegmentationLayer : public costmap_2d::CostmapLayer
 {
 public:
   CustomSegmentationLayer();

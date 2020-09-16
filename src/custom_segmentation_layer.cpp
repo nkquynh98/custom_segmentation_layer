@@ -268,7 +268,8 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
       unsigned int mx, my;
       double mark_x=objectList_[i].obstaclePoints_.points[j].x;
       double mark_y=objectList_[i].obstaclePoints_.points[j].y;
-      
+      touch(mark_x, mark_y, min_x, min_y,max_x,max_y);
+      //ROS_INFO("%f, %f, %f, %f",*min_x, *min_y, *max_x, *max_y);
       if(objectList_[i].isPublishedCostmap())
       {
         //ROS_INFO_STREAM(mark_x);
@@ -297,10 +298,10 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   //objectList_[1].publish_costmap();
 
   // REVIEW: potentially make this configurable, or calculated?
-  *min_x = -20; // 20 meters, max size
+/*   *min_x = -20; // 20 meters, max size
   *min_y = -20;
   *max_x = 20;
-  *max_y = 20;
+  *max_y = 20; */
   
 
   new_data = false;
