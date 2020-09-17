@@ -4,6 +4,7 @@
 #include <custom_segmentation_layer/custom_segmentation_layer.h>
 #include <pluginlib/class_list_macros.h>
 #include <cv_bridge/cv_bridge.h>
+#include <cmath>
 
 PLUGINLIB_EXPORT_CLASS(custom_segmentation_layer::CustomSegmentationLayer, costmap_2d::Layer)
 
@@ -35,7 +36,10 @@ void CustomSegmentationLayer::onInitialize()
   nh.param("min_distance",x_range_min,x_range_min);
   std::string object_list;
   nh.param("object_list",object_list,std::string(""));
-
+  segmentationTrust_offset=0.5;
+  segmentationTrust_base=10;
+  nh.param("segmentationTrust_offset",segmentationTrust_offset,segmentationTrust_offset); //rad/s
+  nh.param("segmentationTrust_base",segmentationTrust_base,segmentationTrust_base);
   //get value from object_list
   std::stringstream ss(object_list);
   std::string source;
@@ -119,7 +123,7 @@ void CustomSegmentationLayer::odomCB(const nav_msgs::Odometry::ConstPtr& msg)
   tf::Vector3 vel = tf::quatRotate(pose, twistLinear);
   current_vel_.x = vel.x();
   current_vel_.y = vel.y();
-  current_vel_.z = vel.z();
+  current_vel_.z = msg->twist.twist.angular.z;
 }
 
 void CustomSegmentationLayer::convert_points(double robot_x, double robot_y, double robot_yaw, sensor_msgs::PointCloud data)
@@ -129,7 +133,7 @@ void CustomSegmentationLayer::convert_points(double robot_x, double robot_y, dou
   for (int i=0; i<data.points.size(); i++)
   {
       double point_x=data.points[i].y;
-      double point_y=data.points[i].x;
+      double point_y=-data.points[i].x;
       //ROS_INFO_STREAM(data.points[i].z);
       if((point_x>x_range_min) && (point_x<x_range_max))
       {
@@ -207,7 +211,12 @@ void CustomSegmentationLayer::matchSize_costmapObject()
     for (int i=0; i<objectList_.size(); i++)
     {
       if (!objectList_[i].isPublishedCostmap()) continue;
-      objectList_[i].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), -1);
+      unsigned char value=-1;
+      if (objectList_[i].isDynamic())
+      {
+        value = 0;
+      }
+      objectList_[i].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), value);
     }
     isInitializing_=false;
   }
@@ -300,7 +309,10 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   for (int i=0; i<raw_data.points.size(); i++)
   {
       double point_x=raw_data.points[i].y;
-      double point_y=raw_data.points[i].x;
+      double point_y=-  raw_data.points[i].x;
+
+      //int segmenation_trust=int(255/std::pow(segmentationTrust_base,std::max(0.0,std::abs(current_vel_.z)-segmentationTrust_offset)));
+      //  ROS_INFO_STREAM(obstacle_cell_value);
       //ROS_INFO_STREAM(data.points[i].z);
       if((point_x>x_range_min) && (point_x<x_range_max))
       {
@@ -318,9 +330,11 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
             {
               //ROS_INFO_STREAM(objectList_[i].getName());
               //ROS_INFO_STREAM(objectList_[i].isObstacle());
+              int obstacle_cellvalue= LETHAL_OBSTACLE;
+              //if (!objectList_[j].isDynamic()){obstacle_cellvalue=segmenation_trust;}
               if(objectList_[j].isObstacle())
               {
-                objectList_[j].SegmentationCostmaps_->setCost(mx, my, LETHAL_OBSTACLE);
+                objectList_[j].SegmentationCostmaps_->setCost(mx, my, obstacle_cellvalue);
               }
               else 
               {
@@ -333,7 +347,7 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
       }
   }
   publish_dynamicObstacle();
-  publishCostMap();
+  //  publishCostMap();
 
   //objectList_[1].publish_costmap();
 
