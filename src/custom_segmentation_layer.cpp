@@ -19,24 +19,58 @@ CustomSegmentationLayer::CustomSegmentationLayer() {}
 void CustomSegmentationLayer::onInitialize()
 {
   isInitializing_=true;
-  std::string segmentation_topic;
-
-  segmentation_topic = "/segmentation/data";
-  std::string odom_topic="/odom";
-  std::string dynamicObstacle_topic="/move_base/TebLocalPlannerROS/obstacles";
   ros::NodeHandle nh("~/" + name_);
+  std::string segmentation_topic = "/segmentation/data";
+  nh.param("segmentation_topic", segmentation_topic, segmentation_topic);
+  ROS_INFO_STREAM(segmentation_topic);
+  std::string odom_topic="/odom";
+  nh.param("odom_topic", odom_topic, odom_topic);
+  std::string dynamicObstacle_topic="/move_base/TebLocalPlannerROS/obstacles";
+  nh.param("obstacles_topic", dynamicObstacle_topic, dynamicObstacle_topic);
   isDynamicPublished_=true;
-  
+  nh.param("publish_dynamic_obstacle",isDynamicPublished_,isDynamicPublished_);
+  x_range_min=1.5;
+  x_range_max=5;
+  nh.param("max_distance",x_range_max,x_range_max);
+  nh.param("min_distance",x_range_min,x_range_min);
+  std::string object_list;
+  nh.param("object_list",object_list,std::string(""));
+
+  //get value from object_list
+  std::stringstream ss(object_list);
+  std::string source;
+  while (ss >> source)
+  {
+    ros::NodeHandle source_node(nh, source);
+    bool isPublish, isDynamic, isObstacle;
+    int object_id;
+    std::string object_name;
+    source_node.param("name", object_name, source);
+    source_node.param("id", object_id, -1);
+    source_node.param("publish", isPublish, false);
+    source_node.param("dynamic", isDynamic, false);
+    source_node.param("obstacle", isObstacle, false);
+    if(object_id!=-1)
+    {
+      objectList_.push_back(SegmentationObject(object_name, object_id, isPublish, isDynamic, isObstacle));
+      ROS_INFO("Created object %s with id %d", source.c_str(),object_id);
+      
+    }
+    else
+    {
+      ROS_INFO("Fail to create object %s", source.c_str());
+    }
+  }
+
   current_ = true;
   new_data = false;
   default_value_ = NO_INFORMATION;
   matchSize();
-  x_range_min=1.5;
-  x_range_max=5;
 
+/* 
   objectList_.push_back(SegmentationObject("freepath", 1, true, true, true));
   objectList_.push_back(SegmentationObject("human", 2, true, true, true));
-  objectList_.push_back(SegmentationObject("obstacles", 0, false, false, false));
+  objectList_.push_back(SegmentationObject("obstacles", 0, false, false, false)); */
 
    
   //ROS_INFO_STREAM(master->getSizeInCellsX());
