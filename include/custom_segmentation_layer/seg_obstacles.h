@@ -5,6 +5,7 @@
 #include <costmap_2d/costmap_2d.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d_publisher.h>
+#include <costmap_2d/costmap_layer.h>
 #include <costmap_2d/GenericPluginConfig.h>
 #include <dynamic_reconfigure/server.h>
 #include <opencv2/opencv.hpp>
@@ -33,6 +34,17 @@
 
 // STL
 #include <memory>
+
+/* class Custom_CostmapLayer: public costmap_2d::CostmapLayer
+{
+public:
+    Custom_CostmapLayer(unsigned int cells_size_x, unsigned int cells_size_y, double resolution, double origin_x, double origin_y, unsigned char default_value=0): costmap_2d::Costmap2D(cells_size_x,cells_size_y,resolution,origin_x,origin_y,default_value)
+    {}
+    void useUpdateWithOverwrite(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
+    {
+        updateWithOverwrite(master_grid, min_i, min_j, max_i, max_j);
+    }
+}; */
 
 class SegmentationObject
 {
@@ -88,6 +100,7 @@ public:
     void InitializeCostmap(unsigned int cells_size_x, unsigned int cells_size_y, double resolution, double origin_x, double origin_y, unsigned char default_value)
     {
         SegmentationCostmaps_= new costmap_2d::Costmap2D(cells_size_x,cells_size_y,resolution, origin_x, origin_y, default_value);
+        //SegmentationCostmaps_= new Custom_CostmapLayer(cells_size_x,cells_size_y,resolution, origin_x, origin_y, default_value);
         std::string topic_name= obstacleNames_ + "/costmap";
         visualize_costmap_pub_ = new costmap_2d::Costmap2DPublisher(&nh, SegmentationCostmaps_, "/map", topic_name, false);
     }
@@ -279,6 +292,7 @@ public:
     sensor_msgs::PointCloud obstaclePoints_;
     int obstacleID_;
     costmap_2d::Costmap2D* SegmentationCostmaps_;
+    //Custom_CostmapLayer* SegmentationCostmaps_;
     costmap_2d::Costmap2DPublisher* visualize_costmap_pub_;
     cv::Mat costmap_mat_;
     ros::NodeHandle nh;

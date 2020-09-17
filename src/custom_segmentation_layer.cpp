@@ -100,6 +100,7 @@ void CustomSegmentationLayer::dataCB(const sensor_msgs::PointCloud::ConstPtr &ms
         objectList_[i].clearPoints();
       }
   raw_data=*msg;
+  
   new_data = true;
 }
 
@@ -206,7 +207,7 @@ void CustomSegmentationLayer::matchSize_costmapObject()
     for (int i=0; i<objectList_.size(); i++)
     {
       if (!objectList_[i].isPublishedCostmap()) continue;
-      objectList_[i].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), 0);
+      objectList_[i].InitializeCostmap(this->getSizeInCellsX(), this->getSizeInCellsY(), this->getResolution(),this->getOriginX(), this->getOriginY(), -1);
     }
     isInitializing_=false;
   }
@@ -238,7 +239,7 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
     return;
   matchSize();
   matchSize_costmapObject();
-  convert_points(robot_x, robot_y, robot_yaw, raw_data);
+  //convert_points(robot_x, robot_y, robot_yaw, raw_data);
   //ROS_INFO_STREAM(objectList_[1].SegmentationCostmaps_->getOriginX());
   
   //objectList_[1].publish_costmap();
@@ -258,7 +259,7 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   }
  */
   //ROS_INFO("Object List size is : %d", objectList_.size());
-  for (int i=0; i<objectList_.size(); i++)
+/*   for (int i=0; i<objectList_.size(); i++)
   {
     //ROS_INFO_STREAM(objectList_[1].obstaclePoints_.points.size());
     //ROS_INFO("Object List size is : %d",objectList_[i].obstaclePoints_.points.size());
@@ -291,9 +292,48 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
       }
       }
     }
+  } */
+
+  double cos_th = cos(robot_yaw);
+  double sin_th = sin(robot_yaw);
+  //ROS_INFO_STREAM(raw_data.points.size());
+  for (int i=0; i<raw_data.points.size(); i++)
+  {
+      double point_x=raw_data.points[i].y;
+      double point_y=raw_data.points[i].x;
+      //ROS_INFO_STREAM(data.points[i].z);
+      if((point_x>x_range_min) && (point_x<x_range_max))
+      {
+        double mark_x=robot_x + (point_x*cos_th - point_y*sin_th);
+        double mark_y=robot_y + (point_x*sin_th + point_y*cos_th);
+        touch(mark_x, mark_y, min_x, min_y,max_x,max_y);
+        for (int j=0; j<objectList_.size(); j++)
+        {
+          if (!objectList_[j].isPublishedCostmap()) continue;
+          if (objectList_[j].obstacleID_==raw_data.points[i].z)
+          {
+            //objectList_[j].addPoints(temp_point);
+            unsigned int mx, my;
+            if(worldToMap(mark_x, mark_y, mx, my))
+            {
+              //ROS_INFO_STREAM(objectList_[i].getName());
+              //ROS_INFO_STREAM(objectList_[i].isObstacle());
+              if(objectList_[j].isObstacle())
+              {
+                objectList_[j].SegmentationCostmaps_->setCost(mx, my, LETHAL_OBSTACLE);
+              }
+              else 
+              {
+                objectList_[j].SegmentationCostmaps_->setCost(mx, my, FREE_SPACE);
+              }
+            //ROS_INFO("Mark X is %f, Mark Y is %f  , value is %d", mark_x, mark_y, costmap_[getIndex(mx, my)]);
+            }
+          }
+        }
+      }
   }
   publish_dynamicObstacle();
-  //publishCostMap();
+  publishCostMap();
 
   //objectList_[1].publish_costmap();
 
@@ -305,6 +345,7 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   
 
   new_data = false;
+  need_update=true;
 }
 
   // actually update the costs within the bounds
@@ -314,16 +355,46 @@ void CustomSegmentationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, in
   if (!enabled_)
     return;
 
+  if (!need_update)
+    return;
+/*   for (int k=0; k<objectList_.size(); k++)
+  {
+    if (!objectList_[k].isPublishedCostmap()) continue;
+    objectList_[k].SegmentationCostmaps_->useUpdateWithOverwrite(master_grid, min_i, min_j, max_i, max_j);
+  } */
+  unsigned char* master = master_grid.getCharMap();
+  unsigned int span = master_grid.getSizeInCellsX();
   for (int j = min_j; j < max_j; j++)
   {
     for (int i = min_i; i < max_i; i++)
     {
       int index = getIndex(i, j);
-      if (costmap_[index] == NO_INFORMATION)
+      unsigned char old_value = master[index];
+      int cell_value=-1;
+      if (old_value!=NO_INFORMATION) cell_value=int(old_value);
+      //ROS_INFO_STREAM(cell_value);
+      for (int k=0; k<objectList_.size(); k++)
+      {
+        if (!objectList_[k].isPublishedCostmap()) continue;
+        unsigned char object_value=objectList_[k].SegmentationCostmaps_->getCost(i,j);
+        if (object_value == NO_INFORMATION) continue;
+        cell_value=std::max(cell_value,int(object_value));
+        //if(cell_value!=0) ROS_INFO_STREAM(cell_value);
+      }
+      if (cell_value!=-1)
+      {
+        master[index]=cell_value;
+      }
+
+      
+      //master_grid.setCost(i, j, cell_value);
+      
+/*       if (costmap_[index] == NO_INFORMATION)
 	continue;
-      master_grid.setCost(i, j, costmap_[index]);
+      master_grid.setCost(i, j, costmap_[index]); */
     }
   }
+  need_update=false;
 }
 
 } // end namespace

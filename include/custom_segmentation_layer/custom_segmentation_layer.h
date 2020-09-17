@@ -50,6 +50,7 @@ private:
   int costmap_height;
   int costmap_width;
   bool new_data;
+  bool need_update;
   cv::Mat warped;
   cv::Mat cropped;
   cv::Mat h;
