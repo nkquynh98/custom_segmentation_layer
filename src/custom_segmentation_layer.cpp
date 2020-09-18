@@ -134,7 +134,7 @@ void CustomSegmentationLayer::convert_points(double robot_x, double robot_y, dou
   {
       double point_x=data.points[i].y;
       double point_y=-data.points[i].x;
-      //ROS_INFO_STREAM(data.points[i].z);
+      ROS_INFO_STREAM(data.points[i].z);
       if((point_x>x_range_min) && (point_x<x_range_max))
       {
         geometry_msgs::Point32 temp_point;
@@ -309,10 +309,10 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
   for (int i=0; i<raw_data.points.size(); i++)
   {
       double point_x=raw_data.points[i].y;
-      double point_y=-  raw_data.points[i].x;
+      double point_y=-raw_data.points[i].x;
 
-      //int segmenation_trust=int(255/std::pow(segmentationTrust_base,std::max(0.0,std::abs(current_vel_.z)-segmentationTrust_offset)));
-      //  ROS_INFO_STREAM(obstacle_cell_value);
+      int segmenation_trust=int(254/std::pow(segmentationTrust_base,std::max(0.0,std::abs(current_vel_.z)-segmentationTrust_offset)));
+      //ROS_INFO_STREAM(segmenation_trust);
       //ROS_INFO_STREAM(data.points[i].z);
       if((point_x>x_range_min) && (point_x<x_range_max))
       {
@@ -331,9 +331,11 @@ void CustomSegmentationLayer::updateBounds(double robot_x, double robot_y, doubl
               //ROS_INFO_STREAM(objectList_[i].getName());
               //ROS_INFO_STREAM(objectList_[i].isObstacle());
               int obstacle_cellvalue= LETHAL_OBSTACLE;
-              //if (!objectList_[j].isDynamic()){obstacle_cellvalue=segmenation_trust;}
+              //ROS_INFO_STREAM(int(LETHAL_OBSTACLE));
+              if (!objectList_[j].isDynamic()){obstacle_cellvalue=segmenation_trust;}
               if(objectList_[j].isObstacle())
               {
+                
                 objectList_[j].SegmentationCostmaps_->setCost(mx, my, obstacle_cellvalue);
               }
               else 
@@ -391,6 +393,7 @@ void CustomSegmentationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, in
       {
         if (!objectList_[k].isPublishedCostmap()) continue;
         unsigned char object_value=objectList_[k].SegmentationCostmaps_->getCost(i,j);
+        //ROS_INFO_STREAM(int(object_value));
         if (object_value == NO_INFORMATION) continue;
         cell_value=std::max(cell_value,int(object_value));
         //if(cell_value!=0) ROS_INFO_STREAM(cell_value);
