@@ -123,6 +123,8 @@ void CustomSegmentationLayer::odomCB(const nav_msgs::Odometry::ConstPtr& msg)
   tf::Vector3 vel = tf::quatRotate(pose, twistLinear);
   current_vel_.x = vel.x();
   current_vel_.y = vel.y();
+  //  if(vel.x()!=0) ROS_INFO("Vel X: %f, Vel Y: %f", vel.x(), vel.y()); 
+  
   current_vel_.z = msg->twist.twist.angular.z;
 }
 
@@ -178,7 +180,7 @@ void CustomSegmentationLayer::publish_dynamicObstacle()
   dynamicObstacles_.header.stamp = ros::Time::now();
   dynamicObstacles_.header.frame_id = "map"; //Global frame /map
   dynamicObstacles_.obstacles.clear();
-
+  int obstacle_id=0;
   for (int i=0; i<objectList_.size(); i++)
   {
     if(objectList_[i].isDynamic())
@@ -187,7 +189,23 @@ void CustomSegmentationLayer::publish_dynamicObstacle()
       objectList_[i].compute_tracking(current_vel_);
       for(int j=0; j<objectList_[i].obstacles_.size(); j++)
       {
+        objectList_[i].obstacles_[j].id=obstacle_id;
         dynamicObstacles_.obstacles.push_back(objectList_[i].obstacles_[j]);
+        obstacle_id++;
+      }
+      if(dynamicObstacles_.obstacles.size()==0)
+      {
+        costmap_converter::ObstacleMsg temp_obstacle;
+        geometry_msgs::Polygon polygon;
+        
+        polygon.points.emplace_back();
+        polygon.points.back().x = 0;
+        polygon.points.back().y = 0;
+        polygon.points.back().z = 0;
+        temp_obstacle.polygon = polygon;
+        temp_obstacle.velocities.twist.linear.x = 0;
+        temp_obstacle.velocities.twist.linear.y = 0 ; 
+        dynamicObstacles_.obstacles.push_back(temp_obstacle);
       }
     }
   }

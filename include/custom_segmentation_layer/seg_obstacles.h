@@ -163,9 +163,9 @@ public:
         blob_det_->detect(costmap_mat_, keypoints_);
         std::vector<std::vector<cv::Point>> contours = blob_det_->getContours();
 
-        cv::Mat im_with_keypoints;
+        /* cv::Mat im_with_keypoints;
         cv::drawKeypoints(costmap_mat_, keypoints_, im_with_keypoints, cv::Scalar(0,0,255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
-        
+        cvVisualize_costmap(obstacleNames_, im_with_keypoints); */
         ////////////////////////////// Tracking ////////////////////////////////////////////
         // Objects are assigned to objects from previous frame based on Hungarian Algorithm
         // Object velocities are estimated using a Kalman Filter
@@ -232,7 +232,7 @@ public:
             obstacles_.push_back(temp_obstacle);
         }
 
-        cvVisualize_costmap(obstacleNames_, im_with_keypoints);
+        
     }
 
     void getContour(unsigned int idx, std::vector<Point_t>& contour)
