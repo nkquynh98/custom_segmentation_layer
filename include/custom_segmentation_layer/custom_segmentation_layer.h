@@ -57,8 +57,11 @@ private:
   ros::Subscriber data_sub_;
   ros::Subscriber odom_sub_;
   ros::Publisher dyn_pub_;
+  ros::Publisher staticVel_pub_;
+  ros::Time initial_time;
   double segmentationTrust_offset;
   double segmentationTrust_base;
+  double fading_factor;
   bool isDynamicPublished_;
   bool isInitializing_;
   void publish_dynamicObstacle();

@@ -102,7 +102,7 @@ public:
         SegmentationCostmaps_= new costmap_2d::Costmap2D(cells_size_x,cells_size_y,resolution, origin_x, origin_y, default_value);
         //SegmentationCostmaps_= new Custom_CostmapLayer(cells_size_x,cells_size_y,resolution, origin_x, origin_y, default_value);
         std::string topic_name= obstacleNames_ + "/costmap";
-        visualize_costmap_pub_ = new costmap_2d::Costmap2DPublisher(&nh, SegmentationCostmaps_, "/map", topic_name, false);
+        visualize_costmap_pub_ = new costmap_2d::Costmap2DPublisher(&nh, SegmentationCostmaps_, "/odom_combined", topic_name, false);
     }
 
 
