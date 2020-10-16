@@ -1,6 +1,3 @@
-// Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
-// Full license terms provided in LICENSE.md file.
-
 #include <custom_segmentation_layer/custom_segmentation_layer.h>
 #include <pluginlib/class_list_macros.h>
 #include <cv_bridge/cv_bridge.h>
