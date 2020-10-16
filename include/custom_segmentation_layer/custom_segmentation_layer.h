@@ -3,6 +3,7 @@
 #include <ros/ros.h>
 #include <costmap_2d/layer.h>
 #include <costmap_2d/layered_costmap.h>
+#include <costmap_2d/costmap_layer.h>
 #include <costmap_2d/GenericPluginConfig.h>
 #include <dynamic_reconfigure/server.h>
 #include <opencv2/opencv.hpp>
@@ -19,7 +20,7 @@
 namespace custom_segmentation_layer
 {
 
-class CustomSegmentationLayer : public costmap_2d::Layer, public costmap_2d::Costmap2D
+class CustomSegmentationLayer : public costmap_2d::CostmapLayer
 {
 public:
   CustomSegmentationLayer();
@@ -49,12 +50,18 @@ private:
   int costmap_height;
   int costmap_width;
   bool new_data;
+  bool need_update;
   cv::Mat warped;
   cv::Mat cropped;
   cv::Mat h;
   ros::Subscriber data_sub_;
   ros::Subscriber odom_sub_;
   ros::Publisher dyn_pub_;
+  ros::Publisher staticVel_pub_;
+  ros::Time initial_time;
+  double segmentationTrust_offset;
+  double segmentationTrust_base;
+  double fading_factor;
   bool isDynamicPublished_;
   bool isInitializing_;
   void publish_dynamicObstacle();
